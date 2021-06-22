@@ -36,11 +36,7 @@ import javax.swing.filechooser.FileSystemView;
  * status code for logging and showing the status to users,
  * etc.
  *
- * @author Shin jong wook
- *
  * @since 07/09/2020
- *
- * @version 1.12.1, 27/01/2021
  * 
  */
 public final class Finder {
