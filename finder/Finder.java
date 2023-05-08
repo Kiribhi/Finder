@@ -35,7 +35,13 @@ import javax.swing.filechooser.FileSystemView;
  * extension list to find(i.e. extensions of zipped files),
  * status code for logging and showing the status to users,
  * etc.
- *
+ * 
+ * 지정된 루트 디렉토리 및 하위 디렉토리에 존재하는 압축파일을 찾아
+ * 지정된 저장소 디렉토리로 복제한다.
+ * 일단 빨리 쓰려고 작성한 코드이다보니 필요한 모든 상수, 메소드 등이 
+ * 이 클래스에 작성되어 있다.
+ * 모든 출력은 콘솔을 통해 이루어지므로 cmd 등 CLI에서 실행하는 게 좋(다고 생각한)다.
+ * 
  * @since 07/09/2020
  * 
  */
@@ -45,25 +51,25 @@ public final class Finder {
      * Every file and directory path are relative to this program
      * should be declared with the absolute path. Because The files
      * should be created on constant path, it is executed wherever.
+     * 
+     * 파일 실행에 필요한 데이터들을 읽어올 경로를 지정한다.
      */
-    private static final String DATA_PATH = "C:\\Program Files\\Nahrim\\Finder\\data\\";
+    private static final String DATA_PATH = "{{YOUR_PATH}}";
     private static final File DATA_DIR = new File(DATA_PATH);
     private static final File ROOT_INFO_FILE = new File(DATA_PATH + "root.txt");
     private static final File STORAGE_INFO_FILE = new File(DATA_PATH + "storage.txt");
     private static final int EOF = -1; //End Of File
-    private static final String ENCODING = "UTF-8"; //Default encoding method is UTF-8
+    private static final String ENCODING = "UTF-8"; //Default encoding is UTF-8
     
     
     /**
      *
-     * A new line character is OS-specific.
+     * 개행 문자는 운영체제마다 다르다.
      * Windows: \r\n
-     * Mackintosh: \r
+     * MacOS: \r
      * Linux: \n
-     * <code>getProperty(String key)</code> searches for the property
-     * with the specified key in this property list.
-     * The key <code>"line.seperator"</code> searches new line character
-     * of this OS.
+     * 
+     * System 클래스의 Property 객체로 읽어온다.
      */
     private static final String NEW_LINE = System.getProperties()
                                                  .getProperty("line.separator");
@@ -71,64 +77,49 @@ public final class Finder {
     
     /**
      * 
-     * Whether initialization is completed or not.
-     * The value of <code>initialized</code> is modified with true after initialization.
-     * This variable is used on checking whether is initialized or not,
-     * to prevent that <code>NullPointerException<code> occurs due to nonexistence of a
-     * root directory, etc. 
+     * 초기화 작업의 수행 여부를 나타낸다.
+     * True면 초기화가 수행되었음을 의미한다.
+     * root directory 등이 존재하지 않음에 따른
+     * NullPointerException 등의 예외를 막기 위해 쓰인다.
+     * 
      */
     private static boolean initialized = false;
     
     
     /**
-     *
-     * The path of initial value of input dialog.
-     * Otherwise an user modifies this, <code>DEFAULT_ROOT_PATH</code> is
-     * saved on root.txt, <code>DEFAULT_STORAGE_PATH</code> is saved on
-     * "C:\Program Files\Nahrim\Finder\data\storage.txt".
-     * The purpose of this program is Finding all zipped file on portable storage medium.
-     * So the default root pathes are E:, F: and so on-drive name of portable storage medium. 
+     * 
+     * 보통 CD에서 압축파일을 찾았기 때문에 기본 경로는 E:\로 설정했다.
+     * 찾아낸 압축파일을 저장할 경로는 마음대로.
      */
     public static final String DEFAULT_ROOT_PATH = "E:\\";
-    private static final String DEFAULT_STORAGE_PATH = "D:\\Finder\\Storage\\";
+    private static final String DEFAULT_STORAGE_PATH = "{{YOUR_PATH}}";
 
     
     /**
      *
-     * The Regular expression for absolute path.
      *
-     * The path that an user input, may be invalid so it sshould be verified.
-     * It can be process by the test, maching with a regular expression.
-     *
-     * Every root directory (that is, the drive) name is uppercase alphabet and
-     * colon next, e.g. C:
-     * The path seperator of Windows is fixed with backslash(\),
-     * but slash(/) is also can be used.
-     * and *, :, /, ", <, >, \, | cannot be used on file name,
-     * <code>[^^:\\*\"/<>\\|\\\\]+</code> means that,
-     * i.e. a character except for *, :, /, ", <, >, \, |
-     *
+     * 루트 디렉토리는 사용자로부터 입력받기 때문에 검증 절차가 필요하다.
+     * Windows의 모든 절대경로는 알파벳 대문자와 :로 시작하며,
+     * 파일이나 디렉토리 이름에 *, :, /, ", <, >, \, |는 쓰일 수 없다.
+     * 이는 정규표현식에서 [^^:\\*\"/<>\\|\\\\]+로 나타내어진다.
+     * 
      * Ex)
      * D:                          : usable
      * A:\                         : usable
      * D:\abc\def                  : usable
-     * D:\|chungsungchungsung^^7|\ : unusable      (|, ^ cannot be used)
-     * C:/asd//asdaf               : unusable      (A path seperator cannot be duplicate)
-     * D:\\AA\bbb                  : unusable      (A path seperator cannot be duplicate)
-     * D:asdg                      : unusable      (Colon is not usable on directory name
-     *                                              and path must be start with drive name.)
+     * D:\|chungsungchungsung^^7|\ : unusable      (|, ^ 때문에 안 됨)
+     * C:/asd//asdaf               : unusable      (경로 구분자는 하나만!)
+     * D:\\AA\bbb                  : unusable      (경로 구분자는 하나만!(2))
+     * D:asdg                      : unusable      (:은 드라이브 이름에만 쓰일 수 있다.)
+     * 
      */
     public static final String PATH_REGEXP = "[A-Z]:(((\\\\|/)[^\\^:\\*\"</>\\|\\\\]+)*(\\\\|/)?)?" +
                                              "((\r\n|\r|\n)+[A-Z]:(((\\\\|/)[^\\^:\\*\"</>\\|\\\\]+)*(\\\\|/)?)?)*" +
                                              "(\r\n|\r|\n)*";
     
     /**
-     *
-     * The status codes for logging.
-     * On log file, the log message corresponding to status code will be logged.
-     * In <code>STATUS_MESSAGES</code>, index is mapped with status code,
-     * so <code>STATUS_MESSAGES[statusCode]</code> presents the log message
-     * corresponding to given status code.
+     * 
+     * 상태 코드.
      */
     private static final int NORMAL = 0;
     private static final int NO_ROOT_DIR = 1;
@@ -147,16 +138,10 @@ public final class Finder {
 
     
     /**
-     *
-     * This program uses the dialogues in next three type. So the
-     * titles, message types, option types should be defined.
-     * Titles are not declared on <code>javax.swing.JOptionPane</code>
-     * so should be defined on this class.
-     * But message types and options types are declared in
-     * <code>javax.swing.JOptionPane</code> as constant.
-     * Please see {@link javax.swing.JOptionPane} to get information of declaration.
-     * For convenience, they has declared with same name,
-     * equal value.
+     * 
+     * 대화상자에 쓰일 제목을 나타내는 상수.
+     * 여기서 쓰이는 대화상자는 정보, 경고, 에러, 입력의 
+     * 네 가지 유형으로 나뉜다.
      *
      * @see javax.swing.JOptionPane
      */
@@ -168,8 +153,8 @@ public final class Finder {
 
     /**
      *
-     * The integer values corresponding to message types.
-     * Please see {@link javax.swing.JOptionPane} to get information of exact value.
+     * 대화상자로 표시할 메시지 유형을 나타내는 정수 값이다.
+     * 자세한 내용은 {@link javax.swing.JOptionPane} 참고.
      *
      * @see javax.swing.JOptionPane
      */
@@ -180,9 +165,8 @@ public final class Finder {
 
     /**
      *
-     * The integer values corresponding to types of option
-     * to be chosen of confirm dialog.
-     * Please see {@link javax.swing.JOptionPane} to get information of exact value.
+     * 대화상자로 사용자에게 보여줄 선택지를 나타내는 상수.
+     * <code>JOptionPane.YES_NO_OPTION</code>는 예/아니오를 표시한다.
      *
      * @see javax.swing.JOptionPane
      */
@@ -192,6 +176,9 @@ public final class Finder {
      *
      * The integer values corresponding to option that has been chosen.
      * Please see {@link javax.swing.JOptionPane} to get information of exact value.
+     * 
+     * 사용자가 선택한 옵션을 나타내는 상수.
+     * 각각 예, 아니오, 취소, 창 닫기 버튼을 눌렀을 때 반환되는 값이다.
      *
      * @see javax.swing.JOptionPane
      */
@@ -202,39 +189,33 @@ public final class Finder {
 
     /**
      *
-     * A zipped file extensions list, except for split compression file's.
-     * A split zipped file extension is distinct by regular expressions,
-     * follow as:
-     *  <code>"[AaZz]{1}0[0-9]{1}"</code>   Ex) Z01, A02
-     *  <code>"[A-Za-z0-9]+_Z"</code>       Ex) tgz_Z,
-     *  <code>"00[1-9]{1}"</code>           Ex) 001, 002
+     * 압축파일 확장자 집합.
+     * 순서와 무관하므로 Set으로 선언했다.
      */
     private static final Set<String> EXTENSION_SET = new HashSet<String>(0);
+
     /**
-     *
-     * After searching the searched files are loaded on <code>TASK_LIST</code>.
-     * And then, clone process will be executed by the sequence that added on the list.
      * 
-     * If reproduction failed that file will be added on <code>FAILED_TASK_LIST</code>
-     * and try again those. 
+     * 탐색이 끝난 후 복제할 압축파일의 경로는 <code>TASK_LIST</code>에 추가된다.
+     * 이후 <code>TASK_LIST</code>를 순회하며 복제를 진행한다.
+     * 복제에 실패하면 <code>FAILED_TASK_LIST</code>에 추가해 다시 시도한다.
      */
     private static final List<File> TASK_LIST = new ArrayList<File>(0);
     private static final List<File> FAILED_TASK_LIST = new ArrayList<File>(0);
 
     /**
      *
-     * Logging is started when the program is executed and
-     * is terminated when the program is terminated.
-     * So the logging stream must be opened during running.
+     * 로그를 기록하기 위한 Logger 클래스.
+     * inner class로 선언되어 있으며 singleton pattern이 쓰였다.
      */
     private static final Logger LOGGER = Logger.logger();
 
 
     /**
-     * This method roles of a kind of main method.
+     * <code>main()</code> 메소드 역할을 한다.
      *
-     * @return status code.
-     *         zero if the program is normally terminatated, not zero otherwise.
+     * @return 상태 코드.
+     *         정상적으로 종료되면 0을, 아니면 다른 값이 반환된다.
      */
     public static int start() {
         log("Program starts.");
@@ -250,14 +231,9 @@ public final class Finder {
     }
 
     /**
-     *
-     * Stuff that MUST be initialized: storage directory, data directory,
-     *                                 rootpath.txt, log message set
-     *                                 
-     * Set a environment that Finder runs. 
-     * If a directory that log and various info files are saved is nonexistent, make that.
-     * And save the information of <code>storagePath</code> and <code>rootPath</code> in there. 
-     * 
+     * root directory 경로, 확장자 목록 등
+     * Finder가 실행되기 위한 전제조건을 설정한다.
+     * 필요한 게 없으면 생성하는 절차다.
      *
      * @return {@value #NORMAL} if initialization is succeeded,
      *         {@value #NOT_INITED} otherwise.
@@ -269,6 +245,7 @@ public final class Finder {
             String message = "Initializing . . .";
             logPrint(message);
 
+            //상태 코드에 대응되는 메시지를 지정한다.
             if(STATUS_MESSAGES.size() < 1) {
                 STATUS_MESSAGES.put(NORMAL, "Normally terminated.");
                 STATUS_MESSAGES.put(NO_ROOT_DIR, "A root directory to search does not exist.");
@@ -284,9 +261,9 @@ public final class Finder {
                 STATUS_MESSAGES.put(PATH_COLLISION, "Path is duplicate.");
             }
 
-            //Initialize set of extension that will be filtered
+            //압축파일 확장자명을 집합에 추가한다.
             if(EXTENSION_SET.size() < 1) {
-                EXTENSION_SET.add("﻿ace");
+                EXTENSION_SET.add("ace");
                 EXTENSION_SET.add("alz");
                 EXTENSION_SET.add("arc");
                 EXTENSION_SET.add("arj");
@@ -331,7 +308,9 @@ public final class Finder {
                 EXTENSION_SET.add("7z");
             }
 
-            //Check whether data directory exists or not
+            //데이터 디렉토리가 없으면 만든다.
+            //데이터 디렉토리에는
+            // root 경로, storage 경로 등에 대한 정보가 적힌 파일이 저장된다.
             if(DATA_DIR.exists()) {
                 message = "The data directory exists.";
                 logPrint(message);
@@ -350,7 +329,8 @@ public final class Finder {
                 }
             }
 
-            //Initialize storage.txt
+            //저장소에 대한 정보가 적힐 파일이 없으면 생성한다.
+            //있으면 유효한 저장소가 지정되어 있는지 확인한다.
             if(STORAGE_INFO_FILE.exists()) {
                 message = "storage.txt exists.";
                 logPrint(message);
@@ -387,7 +367,8 @@ public final class Finder {
                 }
             }
 
-            //Initialize root.txt
+            //root에 대한 정보가 적힐 파일이 없으면 생성한다.
+            //있으면 유효한 root가 지정되어 있는지 확인한다.
             if(ROOT_INFO_FILE.exists()) {
                 message = "root.txt exists.";
 
@@ -442,21 +423,20 @@ public final class Finder {
     }
 
     /**
+     * 
+     * 전체적인 작업 수행이 이루어진다.
      *
-     * Operates the substantial functions,
-     * e.g. initialization, searching, reproduction, etc.
-     *
-     * @return Various status code
+     * @return 상태 코드
      */
     private static int run() {
-    	//If initialzation is failed program cannot be executed.
+    	//초기화가 되지 않았으면 종료한다.
         if(!initialized) {
             if(!init()) {
                 return NOT_INITED;
             }
         }
         
-        //Get rootpath
+        //root path 정보를 읽어온다.
         List<String> rootPathList;
         try {
             rootPathList = getRootPathList();
@@ -468,13 +448,13 @@ public final class Finder {
             return IO_FAIL;
         }
 
-        //Execution dialogue
+        //root path에 대한 정보가 없으면 종료한다.
         if((rootPathList == null)
         || (rootPathList.size() < 1)) {
             return NO_ROOT_INFO;
         }
 
-        /*////Execution////*/
+        /*실행부*/
         String message = "Execute the program?";
         int option = confirmDialog(message);
         switch(option) {
@@ -489,7 +469,8 @@ public final class Finder {
                     
                     //Get File object of storage directory
                     File storageDir = new File(storagePath);
-                    if(storageDir == null) {
+                    if((storageDir == null)
+                    || !storageDir.exists()) {
                         return MKSTRG_FAIL;
                     }
 
@@ -624,11 +605,10 @@ public final class Finder {
     }
 
     /**
-     *
-     * Creates root.txt and write inputted path on root.txt file.
-     * root.txt is the file that the information of path to search is saved.
      * 
-     * @return true if root.txt is created, false otherwise.
+     * root에 대한 데이터가 저장될 파일을 생성한다.
+     * 
+     * @return root.txt가 생성되면 <code>true</code> 아니면 <code>false</code>
      */
     private static boolean createRootDirInfoFile() {
         String message = "root.txt does not exist.";
@@ -682,7 +662,11 @@ public final class Finder {
         }
     }
 
-
+    /**
+     * 저장소 디렉토리를 생성한다.
+     * 
+     * @return 저장소 디렉토리가 생성됐으면 <code>true</code>, 아니면 <code>false</code>
+     */
     private static boolean makeStorage() {
         String message = "The storage directory does not exist.";
         warningDialog(message);
@@ -776,23 +760,11 @@ public final class Finder {
 
     /**
      *
-     * Finds the zipped files from the given path, <code>rootPath</code>.
-     * If the path is not the directory path or does not exists,
-     * the method returns false.
-     *
-     * The path should be given as the absolute path.
-     * or unexpectable result is outputed.
-     *
-     * If no subdirectory of file at the gived root directory path
-     * returns corresponding status code, or check it is whether
-     * file or directory.
-     * If it is directory, call this method recursively,
-     * or add it to <code>PACKING_FILE_LIST</code> after checking
-     * whether it is a zipped file.
-     *
+     * 압축 파일을 찾아 <code>TASK_LIST</code>에 추가한다.
+     * 
      * @param  rootPath the directory path to start searching
      *
-     * @return various status code
+     * @return 상태 코드
      */
     private static boolean search(String rootPath) {
         File rootDir = new File(rootPath);
@@ -834,18 +806,17 @@ public final class Finder {
      * Copies all the byte datas from <code>src</code> to <code>dest</code>.
      * Before executing the process, check if there is <code>dest</code> or not.
      * If <code>dest</code> is already exists, duplicate files are numbered.
+     * 
+     * 압축파일을 저장소로 복제한다.
+     * 바이트 단위로 복제하며, 같은 이름의 파일은 sequence number를 붙여 모두 복제한다.
      *
-     * @param src  file to be copied
-     * @param dest file to be pasted
+     * @param src  복사될 파일
+     * @param dest 붙여넣을 파일
      *
      * @return true if reproducing is normally completed, false otherwise.
      */
     private static final boolean reproduce(File dest, File src) {
         try {
-            /**
-             * If this process (i.e. numbering process) is not executed
-             * file will be overwrited.
-             * */
             if(dest.exists()) {
                 String idx = getNextIndexOf(dest.getName(), dest.getParentFile());
                 String newDestPath = dest.getCanonicalPath();
@@ -867,6 +838,7 @@ public final class Finder {
 
             int b;
             while((b = bis.read()) != EOF) { bos.write(b);}
+            bis.close();
 
             log(src.getCanonicalPath());
             bos.flush();
@@ -882,19 +854,13 @@ public final class Finder {
     
     /**
      *
-     * The method <code>delete()</code> only delete a file
-     * or an empty directory. So, to clear all the files
-     * and subdirectory, deleting files under subdirectory
-     * must be preprocessed.
-     * In the file list from the <code>listFiles()</code>,
-     * an directory has the priority. So calling this method
-     * recursively all the file and subdirectory is deleted,
-     * contains the root directory.
+     * 저장소를 비우기 위한 메소드.
+     * 이전에 복제한 파일이 남지 않게 하려면 수동으로 지워야 한다.
      *
      * @param rootDir
-     *        A root directory to start clearing all the file and subdirectries.
+     *        <code>rootDir</code>과 하위 디렉토리의 모든 파일을 삭제한다.
      *
-     * @return true if clearing is end with no error, false otherwise.
+     * @return 작업 성공 여부. 성공시 <code>true</code>
      */
     private static boolean clear(File rootDir) {
         if(rootDir.exists()) {
@@ -916,14 +882,15 @@ public final class Finder {
     
 
     /**
+     * 
+     * 압축파일인지 판별하는 메소드.
+     * 분할압축도 포함된다.
      *
-     * Checks the given file is zipped file, basis of the extensions
-     * like zip, jar, tar, A00, Z01, tar_Z, 001
+     * @param file 
+     *        판별할 파일(경로)
      *
-     * @param file The file to check whether zipped file or not
-     *
-     * @return true if <code>file</code> is zipped file,
-     *         false otherwise.
+     * @return <code>file</code>가 압축파일이면 <code>true</code>
+     *         아니면 <code>false</code>
      */
     private static final boolean isZipped(File file) {
         String ext = getExtensionOf(file);
@@ -936,11 +903,12 @@ public final class Finder {
     
     /**
      *
-     * Returns extension from a given <code>File</code> object.
+     * 주어진 경로에서 확장자명만 떼어내 반환한다.
      *
-     * @param file <code>File</code> object of file to get extension
+     * @param file
+     *        확장자명을 얻을 파일명
      *
-     * @return extension that is converted to lower case.
+     * @return 소문자로 변환된 확장자명
      */
     private static final String getExtensionOf(File file) {
         String s = file.getName();
@@ -950,9 +918,11 @@ public final class Finder {
     
     /**
      *
-     * @return A <code>String</code> data of path that read from <code>ROOT_INFO_FILE</code>
-     *         if the path is matched with <code>PATH_REGEXP</code>
-     *         null otherwise
+     * 처음에는 root path를 하나만 지정할 수 있게 했는데, 이제 여러 개로 지정할 수 있게 했다.
+     * 그래서 사실 이제 필요없는데 일단 혹시 모르니까..
+     * 
+     * @return root info file에서 얻어낸 경로를 반환한다.
+     *         경로가 형식에 맞지 않는 경우 null을 반환한다.
      */
     @Deprecated
     @SuppressWarnings("unused")
@@ -973,10 +943,11 @@ public final class Finder {
     
     /**
      *
-     * @return An <code>ArrayList<code> object which contains
-     *         <code>String</code> datas of path that has been read
-     *         from <code>ROOT_INFO_FILE</code> if the data exist,
-     *         <code>null</code> otherwise
+     * root path를 읽어 리스트로 반환한다.
+     * 여러 개로 지정하면 여러 개의 경로 모드를 리스트에 추가해 반환한다.
+     * 유효하지 않은 경로는 리스트에 추가되지 않는다.
+     * 
+     * @return root info file에서 얻어낸 경로를 리스트로 반환한다.
      */
     private static List<String> getRootPathList()
     throws FileNotFoundException, IOException {
@@ -1002,7 +973,8 @@ public final class Finder {
 
 
     /**
-     *
+     * 저장소 경로를 읽어온다.
+     * 
      * @return A <code>String</code> data of path that read from <code>STORAGE_INFO_FILE</code>
      *         if the path is matched with <code>PATH_REGEXP</code>
      *         null otherwise
@@ -1023,32 +995,24 @@ public final class Finder {
     
 
     /**
-     *
-     * This program finds all zipped files from different directory each other.
-     * and stores the specified directory(D:\\Finder\\Storage).
-     * So if duplicate file is skipped or overwrited a vulnerability may occur.
-     *
-     * Let the root directory is ROOT.
-     * And let ROOT\hacking\a.zip is hacking file, ROOT\normal\a.zip is normal file.
-     * then hacking file and normal file exists under different directory with same name.
-     * So next two cases can be considered.
-     *
-     * i)  Let this program skips the duplicate, and
-     *     ROOT\normal\a.zip is found beforehand, and ROOT\hacking\a.zip is found afterhand.
-     *     then ROOT\normal\a.zip is reproduced and ROOT\hacking\a.zip is skipped, so only
-     *     normal file exists in storage.
-     *     Hence a hacking file remains under the root directory but users cannot recognize that
-     *     unless they search all subdirectories and files under ROOT by handwork.
-     *
-     * ii) Let this program overwrites the duplicate, and
-     *     ROOT\hacking\a.zip is found beforehand, and ROOT\normal\a.zip is found afterhand.
-     *     then ROOT\hacking\a.zip is overwrited with ROOT\normal\b.zip, so only normal file
-     *     exists in storage.
-     *     Hence a hacking file remains under the root directory but users cannot recognize that
-     *     unless they search all subdirectories and files under ROOT by handwork.
-     *
-     * Therefore the duplicate files are all MUST be reproduced by numbering.
-     *
+     * 
+     * 파일이름이 중복되는 경우 sequence number를 붙이기 위한 메소드.
+     * 이렇게 하는 이유는 모든 파일을 복제하기 위함인데, 크게 다음과 같은 시나리오를 생각할 수 있다.
+     * 
+     * hacking\a.zip이라는 악성 파일과 normal\a.zip이라는 정상 파일이 있다고 하자.
+     * 중복 파일에 대해 할 수 있는 작업은 건너뛰거나, 덮어쓰거나, 번호를 붙이는 방법이 있다.
+     * 
+     * i) 건너뛰기
+     * 이 경우 normal\a.zip이 먼저 복제되면 hacking\a.zip은 건너뛰게 된다.
+     * 즉 외부에서 들여온 저장매체에 악성 파일이 있는데, 저장소에는 이 파일이 없으므로
+     * 검사하지 않게 되는 것이다.
+     * 
+     * ii) 덮어쓰기
+     * 이 경우 hacking\a.zip이 먼저 복제되면 normal\a.zip으로 덮어씌워진다.
+     * 즉 악성 파일이 저장소에서 탐지되지 않는다.
+     * 
+     * 따라서 중복파일을 포함해 모든 파일이 복제되어야 하며, 이를 위해서는 sequence number를 붙여야 한다.
+     * 
      * @param fileName file name to check whether it is duplcated or not
      *
      * @return the index to be numbered on the duplicate next fileName
@@ -1072,13 +1036,12 @@ public final class Finder {
 
     /**
      *
-     * If <code>dir</code> is an empty directory, <code>dir.listFiles()</code>
-     * returns <code>null</code>
-     * or <code>dir.listFiles().length</code> is under 1.
+     * 주어진 디렉토리가 비어있거나 디렉토리 자체가 없는지 검사한다.
+     * 
+     * @param dir
+     *        검사할 디렉토리
      *
-     * @param dir directory to check whether it has nothing(file, directory, etc.)
-     *
-     * @return true if empty directory, false otherwise.
+     * @return 비어있거나 존재하지 않는 디렉토리면 <code>true</code>, 아니면 <code>false</code>
      */
     private static boolean isEmptyDir(File dir) {
         return ((dir.listFiles() == null)
@@ -1095,7 +1058,7 @@ public final class Finder {
         close();
     }
 
-
+    
     private static void close() {
         try {
             LOGGER.close();
@@ -1105,12 +1068,6 @@ public final class Finder {
         }
     }
 
-
-    /**
-     * 
-     * This methods are used when logging on a file or printing on a console,
-     * showing a dialogue, or both or all of them, with a same message.   
-     */
     private static void logPrintInfoDialog(String message) {
         logPrint(message);
         infoDialog(message);
@@ -1182,11 +1139,10 @@ public final class Finder {
     
     /**
      * 
-     * This method opens a file which is located on a given path.
-     * In this program, this method used for show the reproduced files
-     * to users. 
+     * 복제가 끝나면 저장소 디렉토리를 파일 탐색기로 열어 보여준다.
      * 
-     * @param path <code>String</code> data of path to open.
+     * @param path
+     *        파일 탐색기로 열 경로
      * 
      * @throws IOException
      */
@@ -1210,10 +1166,13 @@ public final class Finder {
          * closed when the program is terminnted.
          * So there is no need to construct multiple logger object,
          * and it is desirable that logger object is declared with singleton.
+         * 
+         * Finder만을 위한 로거 클래스이므로 Singleton 객체로 만든다.
+         * 
          */
         private static Logger logger = new Logger();
 
-        public Logger() {
+        private Logger() {
             try {
                 this.init();
             } catch (IOException e) {
@@ -1231,14 +1190,14 @@ public final class Finder {
         
         /**
          *
-         * Make a nonexistent directory and log files.
-         * A log file name is date e.g. 201003(yyMMdd)
-         *
-         * @return true if initializaion is normally finished
-         *         false otherwise.
+         * 로그를 저장할 파일을 생성한다.
+         * 파일명은 yyMMdd다.
+         * 로그 파일은 쓰기가 가능하게 설정한 후 종료 시 읽기전용으로 변경한다.
+         * 
+         * @return 정상적으로 작업이 종료되면 <code>true</code>, 아니면 <code>false</code>
          *
          * @throws IOException
-         *         If log directory or log file is not created
+         *         로그 파일이나 디렉토리가 생성되지 않은 경우에 해당한다.
          */
         private boolean init()
         throws IOException {
@@ -1258,10 +1217,11 @@ public final class Finder {
         
         /**
          *
-         * @param s string data to be logged
+         * @param s
+         *        로그 파일에 기록될 데이터
          *
-         * @return true if data is normally logged
-         *         false otherwise
+         * @return 로깅이 정상적으로 수행됐으면 <code>true</code>, 아니면 <code>false</code>\
+
          */
         private boolean log(String s){
             try {
@@ -1282,6 +1242,9 @@ public final class Finder {
          * In other words, this method flushes output buffer and closes the stream.
          * Users should not modify the log files. So after cleaning resources should
          * set log file read only.
+         * 
+         * logger에 쓰인 모든 리소스를 정리한다.
+         * 로그 파일은 읽기전용으로 설정한다.
          *
          * @throws IOException
          *         If output buffer is not flushed or if output stream is not closed or both.
