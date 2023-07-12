@@ -25,17 +25,6 @@ import javax.swing.filechooser.FileSystemView;
 
 /**
  *
- * This class finds all zipped file from a specified root directory
- * and reproduce them to a specified storage directory.
- *
- * This class includes a lot of constants follow as:
- * path of information files,
- * data for the dialogs(e.g. title, option type code, message type),
- * regular expression for checking path data inputed from users,
- * extension list to find(i.e. extensions of zipped files),
- * status code for logging and showing the status to users,
- * etc.
- * 
  * 지정된 루트 디렉토리 및 하위 디렉토리에 존재하는 압축파일을 찾아
  * 지정된 저장소 디렉토리로 복제한다.
  * 일단 빨리 쓰려고 작성한 코드이다보니 필요한 모든 상수, 메소드 등이 
@@ -43,15 +32,9 @@ import javax.swing.filechooser.FileSystemView;
  * 모든 출력은 콘솔을 통해 이루어지므로 cmd 등 CLI에서 실행하는 게 좋(다고 생각한)다.
  * 
  * @since 07/09/2020
- * 
  */
 public final class Finder {
     /**
-     *
-     * Every file and directory path are relative to this program
-     * should be declared with the absolute path. Because The files
-     * should be created on constant path, it is executed wherever.
-     * 
      * 파일 실행에 필요한 데이터들을 읽어올 경로를 지정한다.
      */
     private static final String DATA_PATH = "{{YOUR_PATH}}";
@@ -76,18 +59,17 @@ public final class Finder {
     
     
     /**
-     * 
+     *
      * 초기화 작업의 수행 여부를 나타낸다.
      * True면 초기화가 수행되었음을 의미한다.
      * root directory 등이 존재하지 않음에 따른
      * NullPointerException 등의 예외를 막기 위해 쓰인다.
-     * 
      */
     private static boolean initialized = false;
     
     
     /**
-     * 
+     *
      * 보통 CD에서 압축파일을 찾았기 때문에 기본 경로는 E:\로 설정했다.
      * 찾아낸 압축파일을 저장할 경로는 마음대로.
      */
@@ -96,7 +78,6 @@ public final class Finder {
 
     
     /**
-     *
      *
      * 루트 디렉토리는 사용자로부터 입력받기 때문에 검증 절차가 필요하다.
      * Windows의 모든 절대경로는 알파벳 대문자와 :로 시작하며,
@@ -111,7 +92,6 @@ public final class Finder {
      * C:/asd//asdaf               : unusable      (경로 구분자는 하나만!)
      * D:\\AA\bbb                  : unusable      (경로 구분자는 하나만!(2))
      * D:asdg                      : unusable      (:은 드라이브 이름에만 쓰일 수 있다.)
-     * 
      */
     public static final String PATH_REGEXP = "[A-Z]:(((\\\\|/)[^\\^:\\*\"</>\\|\\\\]+)*(\\\\|/)?)?" +
                                              "((\r\n|\r|\n)+[A-Z]:(((\\\\|/)[^\\^:\\*\"</>\\|\\\\]+)*(\\\\|/)?)?)*" +
@@ -231,6 +211,7 @@ public final class Finder {
     }
 
     /**
+     *
      * root directory 경로, 확장자 목록 등
      * Finder가 실행되기 위한 전제조건을 설정한다.
      * 필요한 게 없으면 생성하는 절차다.
@@ -997,7 +978,7 @@ public final class Finder {
     /**
      * 
      * 파일이름이 중복되는 경우 sequence number를 붙이기 위한 메소드.
-     * 이렇게 하는 이유는 모든 파일을 복제하기 위함인데, 크게 다음과 같은 시나리오를 생각할 수 있다.
+     * 이렇게 하는 이유는 모든 파일을 복제하기 위함인데, 다음과 같은 시나리오를 생각할 수 있다.
      * 
      * hacking\a.zip이라는 악성 파일과 normal\a.zip이라는 정상 파일이 있다고 하자.
      * 중복 파일에 대해 할 수 있는 작업은 건너뛰거나, 덮어쓰거나, 번호를 붙이는 방법이 있다.
@@ -1087,17 +1068,6 @@ public final class Finder {
         LOGGER.log(s);
     }
 
-    /**
-     *
-     * all (blah blah)Dialog(String message) methods call the dialogue methods
-     * of <code>javax.swing.JOptionPane</code>.
-     *
-     * see {@link javax.swing.JOptionPane}
-     *
-     * @see javax.swing.JOptionPane
-     *
-     * @param message <code>String</code> object to display on a dialogue
-     */
     private static void infoDialog(String message) {
         JOptionPane.showMessageDialog(null,
                                       message,
