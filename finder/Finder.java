@@ -1150,9 +1150,7 @@ public final class Finder {
                 logPrintErrorDialog("Failed to initialze logger");
             }
         }
-        
-        
-        //Getter of the instance of the singleton object
+
         private static Logger logger() {
             return logger;
         }
@@ -1208,10 +1206,7 @@ public final class Finder {
         
         /**
          *
-         * Cleans logger(i.e. <code>FileWriter</code>) resources.
-         * In other words, this method flushes output buffer and closes the stream.
-         * Users should not modify the log files. So after cleaning resources should
-         * set log file read only.
+         * FileWriter 등 logger에서 쓰인 resource를 정리한다.
          * 
          * logger에 쓰인 모든 리소스를 정리한다.
          * 로그 파일은 읽기전용으로 설정한다.
