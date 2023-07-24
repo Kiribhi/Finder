@@ -85,6 +85,7 @@ public final class Finder {
     /**
      * 
      * 상태 코드.
+     * 지금 보니까 그냥 사용자 정의 예외로 했어야 하지 않나 싶다.
      */
     private static final int NORMAL = 0;
     private static final int NO_ROOT_DIR = 1;
